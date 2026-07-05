@@ -7,9 +7,10 @@ interface Props {
   sessions: PastSession[];
   selectedId: string;
   onSelect: (session: PastSession) => void;
+  onDelete?: (id: string) => void;
 }
 
-export default function PastSessionsPanel({ sessions, selectedId, onSelect }: Props) {
+export default function PastSessionsPanel({ sessions, selectedId, onSelect, onDelete }: Props) {
   return (
     <aside className="flex h-full flex-col rounded-2xl border border-base-600 bg-base-800/50 p-4 shadow-2xl shadow-black/20 backdrop-blur-xl">
       <div className="mb-4 flex items-center justify-between">
@@ -29,6 +30,7 @@ export default function PastSessionsPanel({ sessions, selectedId, onSelect }: Pr
             session={session}
             selected={session.id === selectedId}
             onSelect={onSelect}
+            onDelete={onDelete}
           />
         ))}
       </div>

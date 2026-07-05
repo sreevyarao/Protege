@@ -1,0 +1,25 @@
+{
+  "eval_cases": [
+    {
+      "eval_case_id": "test_clear_explanation",
+      "prompt": {
+        "role": "user",
+        "parts": [{"text": "A Neural Network is a machine learning model inspired by the human brain. It consists of layers of interconnected nodes called neurons. The input layer receives data, hidden layers process it using weights and activation functions, and the output layer produces a prediction."}]
+      }
+    },
+    {
+      "eval_case_id": "test_ambiguous_explanation",
+      "prompt": {
+        "role": "user",
+        "parts": [{"text": "So basically quantum physics is like, when things are small they act weird. Sometimes they are waves, sometimes particles. It's confusing but yeah that's it."}]
+      }
+    },
+    {
+      "eval_case_id": "test_off_topic",
+      "prompt": {
+        "role": "user",
+        "parts": [{"text": "Hello! How are you doing today? What is your name?"}]
+      }
+    }
+  ]
+}

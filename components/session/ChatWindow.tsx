@@ -9,13 +9,16 @@ import { Message } from "@/lib/types";
 interface Props {
   messages: Message[];
   isTyping: boolean;
-  onSend: (text: string) => void;
+  onSend: (text: string, imageFile?: File, audioBlob?: Blob) => void;
 }
 
 export default function ChatWindow({ messages, isTyping, onSend }: Props) {
   const [input, setInput] = useState("");
   const [isRecording, setIsRecording] = useState(false);
   const [uploadedImage, setUploadedImage] = useState<UploadedImagePreview | null>(null);
+  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<BlobPart[]>([]);
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -35,14 +38,56 @@ export default function ChatWindow({ messages, isTyping, onSend }: Props) {
     });
   };
 
+  const toggleRecording = async () => {
+    if (isRecording) {
+      mediaRecorderRef.current?.stop();
+      setIsRecording(false);
+    } else {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const mediaRecorder = new MediaRecorder(stream);
+        mediaRecorderRef.current = mediaRecorder;
+        audioChunksRef.current = [];
+
+        mediaRecorder.ondataavailable = (e) => {
+          if (e.data.size > 0) {
+            audioChunksRef.current.push(e.data);
+          }
+        };
+
+        mediaRecorder.onstop = () => {
+          const blob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+          setAudioBlob(blob);
+          stream.getTracks().forEach((track) => track.stop());
+        };
+
+        mediaRecorder.start();
+        setIsRecording(true);
+        setAudioBlob(null);
+      } catch (err) {
+        console.error("Failed to start recording:", err);
+      }
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim()) return;
+    if (!input.trim() && !uploadedImage && !audioBlob && !isRecording) return;
+    
+    if (isRecording) {
+        // Stop recording first before sending, or just wait. For now, stop it.
+        toggleRecording();
+        return; // wait for onstop to fire, user can send again.
+    }
 
     const imageNote = uploadedImage ? `\n\n[Attached diagram: ${uploadedImage.name}]` : "";
-    onSend(`${input.trim()}${imageNote}`);
+    const audioNote = audioBlob ? `\n\n[Attached voice explanation]` : "";
+    
+    // We pass the actual files to onSend
+    onSend(`${input.trim()}${imageNote}${audioNote}`, uploadedImage?.file, audioBlob || undefined);
+    
     setInput("");
-    setIsRecording(false);
+    setAudioBlob(null);
     handleImageChange(null);
   };
 
@@ -63,7 +108,16 @@ export default function ChatWindow({ messages, isTyping, onSend }: Props) {
       {isRecording && (
         <div className="mx-3 mb-3 flex items-center gap-2 rounded-2xl border border-red-400/20 bg-red-500/10 px-3 py-2 text-xs font-medium text-red-200">
           <span className="h-2 w-2 rounded-full bg-red-400 shadow-[0_0_14px_rgba(248,113,113,0.85)]" />
-          Recording...
+          Recording... (Click Mic to Stop)
+        </div>
+      )}
+
+      {!isRecording && audioBlob && (
+        <div className="mx-3 mb-3 flex items-center gap-2 rounded-2xl border border-blue-400/20 bg-blue-500/10 px-3 py-2 text-xs font-medium text-blue-200">
+          Voice explanation attached!
+          <button type="button" onClick={() => setAudioBlob(null)} className="ml-auto text-blue-300 hover:text-white">
+            <X size={14} />
+          </button>
         </div>
       )}
 
@@ -92,11 +146,11 @@ export default function ChatWindow({ messages, isTyping, onSend }: Props) {
 
       <form onSubmit={handleSubmit} className="flex items-center gap-2 border-t border-base-600 p-3">
         <ImageUpload onChange={handleImageChange} />
-        <AudioInput isRecording={isRecording} onToggle={() => setIsRecording((value) => !value)} />
+        <AudioInput isRecording={isRecording} onToggle={toggleRecording} />
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder={isRecording ? "Recording voice explanation..." : "Explain your concept..."}
+          placeholder={isRecording ? "Recording voice explanation..." : audioBlob ? "Add optional text..." : "Explain your concept..."}
           className="min-w-0 flex-1 rounded-xl border border-base-500 bg-base-900 px-4 py-2.5 text-sm text-white placeholder-gray-500 outline-none transition-all focus:border-accent-500 focus:ring-1 focus:ring-accent-500"
         />
         <button

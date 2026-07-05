@@ -7,64 +7,122 @@ import ChatWindow from "@/components/session/ChatWindow";
 import DirectiveLog from "@/components/session/DirectiveLog";
 import PastSessionsPanel from "@/components/session/PastSessionsPanel";
 import ProgressPanel from "@/components/session/ProgressPanel";
-import {
-  aiFollowUps,
-  directiveTemplates,
-  initialMessages,
-  mockDirectives,
-  pastSessions,
-} from "@/lib/mockData";
+// removed mock data imports
 import { Directive, Message, PastSession } from "@/lib/types";
 
 export default function SessionPage() {
   const router = useRouter();
-  const [topic, setTopic] = useState("Your Topic");
-  const [selectedSessionId, setSelectedSessionId] = useState(pastSessions[0].id);
-  const [messages, setMessages] = useState<Message[]>(initialMessages);
-  const [directives, setDirectives] = useState<Directive[]>(mockDirectives);
+  const [topic, setTopic] = useState("New Session");
+  const [selectedSessionId, setSelectedSessionId] = useState("");
+  const [pastSessionsList, setPastSessionsList] = useState<PastSession[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [directives, setDirectives] = useState<Directive[]>([]);
   const [isTyping, setIsTyping] = useState(false);
-  const [coverage, setCoverage] = useState(58);
-  const [clarity, setClarity] = useState(64);
-  const [confidence, setConfidence] = useState(51);
+  const [coverage, setCoverage] = useState(0);
+  const [clarity, setClarity] = useState(0);
+  const [confidence, setConfidence] = useState(0);
   const [concepts, setConcepts] = useState(2);
   const [seconds, setSeconds] = useState(0);
 
+  const [sessionId, setSessionId] = useState("");
+
   useEffect(() => {
     const saved = localStorage.getItem("protege_topic");
+    const savedId = localStorage.getItem("protege_session_id");
     if (saved) setTopic(saved);
+    if (savedId) setSelectedSessionId(savedId);
+
+    // Fetch past sessions
+    fetch("http://127.0.0.1:8000/api/sessions")
+      .then((res) => res.json())
+      .then((data) => {
+        setPastSessionsList(data);
+        if (savedId && data.some((s: PastSession) => s.id === savedId)) {
+          setSelectedSessionId(savedId);
+        } else {
+          setTopic("New Session");
+          setSelectedSessionId("");
+        }
+      })
+      .catch((err) => console.error(err));
 
     const timer = setInterval(() => setSeconds((s) => s + 1), 1000);
     return () => clearInterval(timer);
   }, []);
+
+  // Fetch individual session details when selected
+  useEffect(() => {
+    if (!selectedSessionId) return;
+    fetch(`http://127.0.0.1:8000/api/sessions/${selectedSessionId}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.session) {
+          setTopic(data.session.topic);
+          setCoverage(data.session.coverage || 0);
+          setClarity(data.session.clarity || 0);
+          setConfidence(data.session.confidence || 0);
+        }
+        if (data.messages) {
+          const formatted = data.messages.map((m: any) => ({
+            id: m.id,
+            role: m.role,
+            content: m.content,
+            timestamp: new Date(m.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          }));
+          setMessages((prev) => {
+            // Prevent wiping optimistic user message if we just created a session
+            if (prev.length > formatted.length && prev[prev.length - 1].role === "user") {
+              return prev;
+            }
+            return formatted;
+          });
+        } else {
+          setMessages((prev) => (prev.length > 0 ? prev : []));
+        }
+        if (data.knowledge_graph?.nodes) {
+          setConcepts(data.knowledge_graph.nodes.length);
+        }
+      })
+      .catch((err) => console.error(err));
+  }, [selectedSessionId]);
 
   const elapsed = `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(
     seconds % 60
   ).padStart(2, "0")}`;
 
   const pushDirectiveMaybe = useCallback(() => {
-    if (Math.random() > 0.55) {
-      const template = directiveTemplates[Math.floor(Math.random() * directiveTemplates.length)];
-      setDirectives((prev) => [
-        ...prev,
-        {
-          id: crypto.randomUUID(),
-          type: template.type,
-          content: template.content,
-          timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-        },
-      ]);
-    }
+    // We can remove mock directives or fetch real ones from backend if supported.
   }, []);
 
   const handlePastSessionSelect = (session: PastSession) => {
     setSelectedSessionId(session.id);
-    setTopic(session.topic);
-    setCoverage(session.score);
-    setClarity(Math.max(62, session.score - 6));
-    setConfidence(Math.max(58, session.score - 12));
+    localStorage.setItem("protege_session_id", session.id);
   };
 
-  const handleSend = (text: string) => {
+  const handleNewSession = () => {
+    setSelectedSessionId("");
+    setTopic("New Session");
+    setMessages([]);
+    setCoverage(0);
+    setClarity(0);
+    setConfidence(0);
+    setConcepts(0);
+    localStorage.removeItem("protege_session_id");
+  };
+
+  const handleDeleteSession = async (id: string) => {
+    try {
+      await fetch(`http://127.0.0.1:8000/api/sessions/${id}`, { method: "DELETE" });
+      setPastSessionsList((prev) => prev.filter((s) => s.id !== id));
+      if (selectedSessionId === id) {
+        handleNewSession();
+      }
+    } catch (err) {
+      console.error("Failed to delete session", err);
+    }
+  };
+
+  const handleSend = async (text: string, imageFile?: File, audioBlob?: Blob) => {
     const userMsg: Message = {
       id: crypto.randomUUID(),
       role: "user",
@@ -75,22 +133,93 @@ export default function SessionPage() {
     setMessages((prev) => [...prev, userMsg]);
     setIsTyping(true);
     setConcepts((c) => c + 1);
-    setCoverage((value) => Math.min(100, value + Math.floor(Math.random() * 5) + 2));
-    setClarity((value) => Math.min(100, value + Math.floor(Math.random() * 4) + 1));
-    setConfidence((value) => Math.min(100, value + Math.floor(Math.random() * 5) + 1));
 
-    setTimeout(() => {
-      const reply = aiFollowUps[Math.floor(Math.random() * aiFollowUps.length)];
+    // Convert files to base64
+    const fileToBase64 = (blob: Blob): Promise<string> => {
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const resultString = reader.result as string;
+          const base64data = resultString ? resultString.split(",")[1] : "";
+          resolve(base64data);
+        };
+        reader.readAsDataURL(blob);
+      });
+    };
+
+    let imageBase64: string | undefined;
+    let imageMime: string | undefined;
+    if (imageFile) {
+      imageBase64 = await fileToBase64(imageFile);
+      imageMime = imageFile.type;
+    }
+
+    let audioBase64: string | undefined;
+    let audioMime: string | undefined;
+    if (audioBlob) {
+      audioBase64 = await fileToBase64(audioBlob);
+      audioMime = audioBlob.type;
+    }
+
+    try {
+      let activeSessionId = selectedSessionId;
+      if (!activeSessionId) {
+        // Create a new session dynamically
+        const createRes = await fetch("http://127.0.0.1:8000/api/sessions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ topic: "New Session" })
+        });
+        const createData = await createRes.json();
+        activeSessionId = createData.id;
+        setSelectedSessionId(activeSessionId);
+        localStorage.setItem("protege_session_id", activeSessionId);
+        
+        // Optimistically update the list so the new session appears
+        setPastSessionsList(prev => [{
+            id: activeSessionId,
+            topic: "New Session",
+            date: new Date().toLocaleDateString(),
+            score: 0
+        }, ...prev]);
+      }
+
+      const res = await fetch("http://127.0.0.1:8000/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          session_id: activeSessionId,
+          message: text,
+          image_b64: imageBase64,
+          image_mime: imageMime,
+          audio_b64: audioBase64,
+          audio_mime: audioMime,
+        })
+      });
+      const data = await res.json();
+      
       const aiMsg: Message = {
         id: crypto.randomUUID(),
         role: "ai",
-        content: reply,
+        content: data.reply || "I am currently disconnected from my brain.",
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       };
       setMessages((prev) => [...prev, aiMsg]);
       setIsTyping(false);
       pushDirectiveMaybe();
-    }, 1100 + Math.random() * 700);
+    } catch (err) {
+      console.error(err);
+      setIsTyping(false);
+    }
+  };
+
+  const handleEndSession = async () => {
+    try {
+      await fetch(`http://127.0.0.1:8000/api/evaluate/${selectedSessionId}`, { method: "POST" });
+    } catch (err) {
+      console.error(err);
+    }
+    router.push(`/report?id=${selectedSessionId}`);
   };
 
   return (
@@ -104,7 +233,7 @@ export default function SessionPage() {
             <p className="mt-1 text-sm text-gray-500">Explain, upload diagrams, or teach by voice.</p>
           </div>
           <button
-            onClick={() => router.push("/report")}
+            onClick={handleEndSession}
             className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-accent-500 to-accent-600 px-4 py-2.5 text-sm font-medium text-white shadow-glow transition-transform hover:scale-[1.02] active:scale-95"
           >
             End Session <FlagTriangleRight size={16} />
@@ -112,11 +241,18 @@ export default function SessionPage() {
         </div>
 
         <div className="grid grid-cols-1 gap-5 xl:grid-cols-[280px_minmax(0,1fr)_320px]">
-          <div className="h-auto xl:h-[72vh]">
+          <div className="h-auto xl:h-[72vh] flex flex-col gap-3">
+            <button
+                onClick={handleNewSession}
+                className="flex items-center justify-center gap-2 rounded-xl bg-base-800 border border-base-600 px-4 py-3 text-sm font-medium text-gray-200 transition-colors hover:border-accent-500 hover:text-white"
+              >
+                + New Session
+            </button>
             <PastSessionsPanel
-              sessions={pastSessions}
+              sessions={pastSessionsList}
               selectedId={selectedSessionId}
               onSelect={handlePastSessionSelect}
+              onDelete={handleDeleteSession}
             />
           </div>
           <div className="h-[72vh]">

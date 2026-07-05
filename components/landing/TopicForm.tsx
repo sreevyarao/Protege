@@ -10,14 +10,33 @@ export default function TopicForm() {
   const [difficulty, setDifficulty] = useState("Intermediate");
   const router = useRouter();
 
-  const handleStart = (e: React.FormEvent) => {
+  const handleStart = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!topic.trim()) return;
-    if (typeof window !== "undefined") {
-      localStorage.setItem("protege_topic", topic);
-      localStorage.setItem("protege_difficulty", difficulty);
+    if (!topic.trim()) {
+      localStorage.removeItem("protege_session_id");
+      router.push("/session");
+      return;
     }
-    router.push("/session");
+    
+    try {
+      const res = await fetch("http://127.0.0.1:8000/api/sessions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ topic })
+      });
+      const data = await res.json();
+      
+      if (typeof window !== "undefined") {
+        localStorage.setItem("protege_topic", topic);
+        localStorage.setItem("protege_difficulty", difficulty);
+        localStorage.setItem("protege_session_id", data.id);
+      }
+      router.push(`/session?id=${data.id}`);
+    } catch (err) {
+      console.error(err);
+      // Fallback
+      router.push("/session");
+    }
   };
 
   return (

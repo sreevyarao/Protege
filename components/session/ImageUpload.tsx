@@ -5,6 +5,7 @@ import { Paperclip } from "lucide-react";
 export interface UploadedImagePreview {
   name: string;
   url: string;
+  file: File;
 }
 
 interface Props {
@@ -18,7 +19,7 @@ export default function ImageUpload({ onChange }: Props) {
     const file = event.target.files?.[0];
     if (!file || !["image/png", "image/jpeg"].includes(file.type)) return;
 
-    onChange({ name: file.name, url: URL.createObjectURL(file) });
+    onChange({ name: file.name, url: URL.createObjectURL(file), file });
     event.target.value = "";
   };
 

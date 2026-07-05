@@ -1,7 +1,13 @@
 import { Lightbulb, Sparkles, TrendingUp } from "lucide-react";
 
-export default function UnderstandingSummary() {
-  const highlights = ["Strong conceptual intuition", "Clear theoretical framing", "Needs more edge-case reasoning"];
+export default function UnderstandingSummary({ nodes }: { nodes?: { concept_name: string, summary: string }[] }) {
+  const highlights = nodes && nodes.length > 0 
+    ? nodes.map(n => n.concept_name).slice(0, 3) 
+    : ["Strong conceptual intuition", "Clear theoretical framing", "Needs more edge-case reasoning"];
+
+  const summaryText = nodes && nodes.length > 0
+    ? `You successfully covered ${nodes.length} core concepts including ${nodes.slice(0, 2).map(n => n.concept_name).join(' and ')}. The Protege has extracted key insights from your explanations.`
+    : `You demonstrate strong conceptual understanding and explain ideas clearly. Your strongest areas are intuition and theoretical concepts. Improvement is needed in practical examples and edge-case reasoning.`;
 
   return (
     <div className="relative overflow-hidden rounded-2xl border border-accent-500/20 bg-gradient-to-br from-base-800/90 via-base-800/70 to-accent-950/20 p-6 shadow-2xl shadow-black/20">
@@ -12,9 +18,7 @@ export default function UnderstandingSummary() {
           Understanding Summary
         </div>
         <p className="text-sm leading-6 text-gray-300">
-          You demonstrate strong conceptual understanding and explain ideas clearly. Your strongest
-          areas are intuition and theoretical concepts. Improvement is needed in practical examples
-          and edge-case reasoning.
+          {summaryText}
         </p>
         <div className="mt-5 grid gap-2">
           {highlights.map((highlight, index) => (
