@@ -24,7 +24,11 @@ These visuals highlight the guided onboarding, live tutoring flow, and the evalu
 
 A short demo of the experience is also available:
 
-- [Watch the demo video](assets/Preview.mp4)
+
+
+https://github.com/user-attachments/assets/237bea2e-d0fa-457d-b4f1-ebc958fe57d6
+
+
 
 ## The Problem
 
