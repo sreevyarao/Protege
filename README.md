@@ -24,10 +24,7 @@ These visuals highlight the guided onboarding, live tutoring flow, and the evalu
 
 A short demo of the experience is also available:
 
-<video controls width="100%" poster="assets/Screenshot From 2026-07-06 09-54-07.png">
-  <source src="assets/Preview.mp4" type="video/mp4" />
-  Your browser does not support the video tag.
-</video>
+- [Watch the demo video](assets/Preview.mp4)
 
 ## The Problem
 
