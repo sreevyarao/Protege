@@ -157,7 +157,7 @@ In the interest of not overselling a hackathon build, here's where Protege stand
 
 Explain-to-an-AI study tools already exist (Feynman AI, StudyTok AI, and others), and Stanford's SCALE Initiative has published research on a similar "Feynman Bot" concept. Protege doesn't claim to be first to the idea. What's different is the architecture: rather than one model call scoring a paragraph, Protege runs a multi-agent Gemini pipeline — parallel extraction, iterative graph-building, sequential scoring, and its own evaluation harness.
 
-## Contributors
+## Developed by-
 
 - [@ThoughtStorm06](https://github.com/ThoughtStorm06) — Jeevan
 - [@sreevyarao](https://github.com/sreevyarao) — S. Sreevya Rao
